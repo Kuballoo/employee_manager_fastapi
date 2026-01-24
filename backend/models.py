@@ -43,8 +43,8 @@ class Users(Base):
     __tablename__ = "users"
 
     uuid = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    login = Column(String(50), nullable=False)
-    hashed_password = Column(nullable=False)
+    login = Column(String(50), nullable=False, unique=True)
+    hashed_password = Column(String(), nullable=False)
 
 
 class UsersEmployeeAccess(Base):
