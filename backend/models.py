@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Uuid, Float, Date, create_engine
+from sqlalchemy import Column, String, Uuid, Float, Date, create_engine, ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from uuid import uuid4
 from datetime import date
@@ -16,13 +16,13 @@ engine = create_engine(f"postgresql://{getenv('DB_USER')}:{getenv('DB_PASSWORD')
 class Base(DeclarativeBase):
     pass
 
-class Users(Base):
+class Employees(Base):
     """
-        Model for Users table in database.
-        
-        Stores personal, contact, and employment-related information.
+    Model for Employees table in database.
+    
+    Stores personal, contact, and employment-related information.
     """
-    __tablename__ = "users"
+    __tablename__ = "employees"
 
     uuid = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     first_name = Column(String(50), nullable=False)
@@ -32,6 +32,33 @@ class Users(Base):
     country = Column(String(25))
     salary = Column(Float, nullable=False)
     employment_date = Column(Date, nullable=False, default=date.today)
+
+
+class Users(Base):
+    """
+    Model for the Employees table in the database.
+
+    Stores personal, contact, and employment-related information.
+    """
+    __tablename__ = "users"
+
+    uuid = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    login = Column(String(50), nullable=False)
+    hashed_password = Column(nullable=False)
+
+
+class UsersEmployeeAccess(Base):
+    __tablename__ = "user_employee_access"
+    """
+    Model for the UserEmployeeAccess table in the database.
+
+    Tracks which users have access to which employees
+    and the level of access (e.g., read, write, admin).
+    """
+    uuid_user = Column(Uuid(as_uuid=True), ForeignKey("users.uuid"), primary_key=True)
+    uuid_employee = Column(Uuid(as_uuid=True), ForeignKey("employees.uuid"), primary_key=True)
+    access_level = Column(String(50))
+    
 
 
 def create_db_and_tables():

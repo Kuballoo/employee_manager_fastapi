@@ -3,7 +3,7 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
-class CreateUserRequest(BaseModel):
+class CreateEmployeeRequest(BaseModel):
     first_name: Annotated[str, Field(max_length=50)]
     last_name: Annotated[str, Field(max_length=50)]
     email: Annotated[str, Field(max_length=100)]
