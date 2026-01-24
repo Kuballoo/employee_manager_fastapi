@@ -1,0 +1,8 @@
+fastapi
+sqlalchemy
+pydantic
+python-jose[cryptography]
+passlib[bcrypt]
+dotenv
+uuid
+psycopg2-binary
