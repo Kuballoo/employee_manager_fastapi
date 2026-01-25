@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Uuid, Float, Date, create_engine, ForeignKey
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
 from uuid import uuid4
 from datetime import date
 
@@ -32,6 +32,11 @@ class Employees(Base):
     country = Column(String(25))
     salary = Column(Float, nullable=False)
     employment_date = Column(Date, nullable=False, default=date.today)
+    access_users = relationship(
+        "Users",
+        secondary="user_employee_access",
+        back_populates="access_employees"
+    )
 
 
 class Users(Base):
@@ -45,7 +50,12 @@ class Users(Base):
     uuid = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     login = Column(String(50), nullable=False, unique=True)
     role = Column(String(50), nullable=False)
-    hashed_password = Column(String(), nullable=False)    
+    hashed_password = Column(String(), nullable=False)
+    access_employees = relationship(
+        "Employees",
+        secondary="user_employee_access",
+        back_populates="access_users"
+    )
 
 
 class UsersEmployeeAccess(Base):

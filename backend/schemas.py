@@ -1,5 +1,6 @@
 from typing import Annotated
 from datetime import date
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -17,3 +18,8 @@ class CreateUserRequest(BaseModel):
     role: Annotated[str, Field(max_length=50)]
     password: Annotated[str, Field(min_length=8)]
     password_confirm: Annotated[str, Field(min_length=8)]
+
+class GiveAccessRequest(BaseModel):
+    user_id: Annotated[UUID, Field()]
+    employees_ids: Annotated[list[UUID], Field()]
+    access_level: Annotated[str, Field(max_length=50)]
