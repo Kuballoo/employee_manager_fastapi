@@ -51,6 +51,32 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
 
 @router.post("/give_access")
 async def give_access(give_access_request: GiveAccessRequest, db: db_dependency, user: user_dependency):
+    """
+    Grant database access to a user for specified employees.
+    This endpoint allows an admin user to grant access to one or more employees
+    for another user. It validates that the requester is an admin, checks if access
+    already exists, verifies employee existence, and creates new access entries.
+    Args:
+        give_access_request (GiveAccessRequest): Request object containing:
+            - user_id: UUID of the user to grant access to
+            - employees_ids: List of employee UUIDs to grant access for
+            - access_level: The level of access to grant
+        db (db_dependency): Database session dependency
+        user (user_dependency): Current authenticated user dependency
+    Returns:
+        dict: A dictionary mapping employee IDs (as strings) to status messages:
+            - "Access granted": Access was successfully created
+            - "Access already exists": User already has access to this employee
+            - "Employee not found": The specified employee does not exist
+    Raises:
+        HTTPException: 
+            - 401 status: If user is None or does not have admin role
+            - 500 status: If database commit fails during access creation
+    Note:
+        All access entries are committed in a single transaction. If any error
+        occurs during commit, the entire transaction is rolled back.
+    """
+
     if user is None or user.get("user_role") != "admin":
         raise HTTPException(status_code=401, detail="Authentication Failed")
     
