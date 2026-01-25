@@ -44,7 +44,8 @@ class Users(Base):
 
     uuid = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     login = Column(String(50), nullable=False, unique=True)
-    hashed_password = Column(String(), nullable=False)
+    role = Column(String(50), nullable=False)
+    hashed_password = Column(String(), nullable=False)    
 
 
 class UsersEmployeeAccess(Base):

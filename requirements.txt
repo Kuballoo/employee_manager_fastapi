@@ -2,7 +2,8 @@ fastapi
 sqlalchemy
 pydantic
 python-jose[cryptography]
-passlib[bcrypt]
+passlib
 dotenv
 uuid
 psycopg2-binary
+bcrypt==4.0.1

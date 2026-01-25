@@ -11,3 +11,9 @@ class CreateEmployeeRequest(BaseModel):
     country: Annotated[str, Field(max_length=25)]
     salary: Annotated[float, Field(gt=0)]
     employment_date: Annotated[date, Field()]
+
+class CreateUserRequest(BaseModel):
+    login: Annotated[str, Field(max_length=50)]
+    role: Annotated[str, Field(max_length=50)]
+    password: Annotated[str, Field(min_length=8)]
+    password_confirm: Annotated[str, Field(min_length=8)]
