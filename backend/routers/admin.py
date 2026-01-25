@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 
 from dependecies import db_dependency, user_dependency
-from models import Users
+from models import Users, Employees, UsersEmployeeAccess
 from schemas import CreateUserRequest, GiveAccessRequest
 from security import bcrypt_context
 
@@ -54,3 +54,34 @@ async def give_access(give_access_request: GiveAccessRequest, db: db_dependency,
     if user is None or user.get("user_role") != "admin":
         raise HTTPException(status_code=401, detail="Authentication Failed")
     
+    give_access_successful = dict()
+    for employee_id in give_access_request.employees_ids:
+        existing = db.query(UsersEmployeeAccess).filter_by(
+            uuid_user=give_access_request.user_id,
+            uuid_employee=employee_id
+        ).first()
+
+        if existing:
+            give_access_successful[str(employee_id)] = "Access already exists"
+            continue
+
+        employee_entry = db.query(Employees).filter(Employees.uuid == employee_id).first()
+        if not employee_entry:
+            give_access_successful[str(employee_id)] = "Employee not found"
+            continue
+        new_access_entry = UsersEmployeeAccess(
+            uuid_user=give_access_request.user_id,
+            uuid_employee=employee_id,
+            access_level=give_access_request.access_level
+        )
+
+        db.add(new_access_entry)
+        give_access_successful[str(employee_id)] = "Access granted"
+    
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to grant access")
+    
+    return give_access_successful
