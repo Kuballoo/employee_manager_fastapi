@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from models import create_db_and_tables
-from routers import employees, auth, users, admin
+from .models import create_db_and_tables
+from .routers import employees, auth, users, admin
 
 
 @asynccontextmanager

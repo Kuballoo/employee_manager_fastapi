@@ -2,7 +2,6 @@ from sqlalchemy import Column, String, Uuid, Float, Date, create_engine, Foreign
 from sqlalchemy.orm import DeclarativeBase, relationship
 from uuid import uuid4
 from datetime import date
-
 from dotenv import load_dotenv
 from os import getenv
 

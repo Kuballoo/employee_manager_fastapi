@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 
-from dependecies import db_dependency, user_dependency
-from models import Users
+from ..dependecies import db_dependency, user_dependency
+from ..models import Users
 
 router = APIRouter(
     prefix="/users",

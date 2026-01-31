@@ -2,10 +2,9 @@ from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from typing import Annotated
 from pandas import read_csv, read_excel
 
-from models import Employees
-from dependecies import db_dependency
-from schemas import CreateEmployeeRequest
-from dependecies import user_dependency
+from ..models import Employees
+from ..dependecies import db_dependency, user_dependency
+from ..schemas import CreateEmployeeRequest
 
 router = APIRouter(
     prefix="/employees",

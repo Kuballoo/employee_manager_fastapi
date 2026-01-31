@@ -5,9 +5,9 @@ from jose import jwt, JWTError
 from typing import Annotated
 from passlib.context import CryptContext
 import os
-
 from dotenv import load_dotenv
-from models import Users
+
+from .models import Users
 
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

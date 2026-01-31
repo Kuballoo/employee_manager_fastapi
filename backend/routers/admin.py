@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 
-from dependecies import db_dependency, user_dependency
-from models import Users, Employees, UsersEmployeeAccess
-from schemas import CreateUserRequest, GiveAccessRequest
-from security import bcrypt_context
+from ..dependecies import db_dependency, user_dependency
+from ..models import Users, Employees, UsersEmployeeAccess
+from ..schemas import CreateUserRequest, GiveAccessRequest
+from ..security import bcrypt_context
 
 router = APIRouter(
     prefix="/admin",

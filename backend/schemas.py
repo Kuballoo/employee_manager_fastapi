@@ -1,7 +1,6 @@
 from typing import Annotated
 from datetime import date
 from uuid import UUID
-
 from pydantic import BaseModel, Field
 
 class CreateEmployeeRequest(BaseModel):
