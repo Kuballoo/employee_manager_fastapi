@@ -70,6 +70,14 @@ class UsersEmployeeAccess(Base):
     access_level = Column(String(50))
     
 
+# TODO
+class Roles():
+    __tablename__ = "roles"
+
+class Permissions():
+    __tablename__ = "permissions"
+
+# END TODO
 
 def create_db_and_tables():
     Base.metadata.create_all(engine)
