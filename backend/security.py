@@ -19,7 +19,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 
-def create_access_token(uuid: str, role: str, expires_delta: timedelta = timedelta(minutes=15)):
+def create_access_token(uuid: str, expires_delta: timedelta = timedelta(minutes=15)):
     """
     Create a JWT access token with user credentials and expiration time.
     
@@ -35,7 +35,6 @@ def create_access_token(uuid: str, role: str, expires_delta: timedelta = timedel
     expire_date = datetime.now() + expires_delta
     payload = {
         "sub": str(uuid),
-        "role": role,
         "exp": expire_date
     }
 
@@ -84,11 +83,10 @@ def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_uuid: str = payload.get("sub")
-        user_role: str = payload.get("role")
 
-        if user_role is None or user_uuid is None:
+        if user_uuid is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user.")
-        return {"user_uuid": user_uuid, "user_roles": user_role}
+        return {"user_uuid": user_uuid}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user.")
 

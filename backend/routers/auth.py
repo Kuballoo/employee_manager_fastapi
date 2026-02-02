@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 
@@ -25,14 +25,18 @@ async def login_for_access_token(login_data: Annotated[OAuth2PasswordRequestForm
             - access_token (str): JWT token for authentication
             - token_type (str): Token type, always "bearer"
     Raises:
-        HTTPException: 400 status code if authentication fails (invalid
+        HTTPException: 401 status code if authentication fails (invalid
             username or password).
     """
 
     user = authenticate_user(login_data.username, login_data.password, db)
     if not user:
-        raise HTTPException(status_code=400, detail="Authentication failed")
-    roles = [role.name for role in user.roles]
-    token = create_access_token(user.uuid, roles)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = create_access_token(user.uuid)
 
     return {"access_token": token, "token_type": "bearer"}
