@@ -13,6 +13,7 @@ def has_permission(user_uuid: str, perm_name: str, db) -> bool:
     user = db.query(Users).filter(Users.uuid == user_uuid).first()
     if not user:
         return False
+    # !DELETE THIS SHIT AFTER FILLING DB
     if user.login == "admin":
         return True
     return any(perm_name == perm.name for role in user.roles for perm in role.permissions)

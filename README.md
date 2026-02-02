@@ -25,7 +25,7 @@ Provide a central API for:
 - **PostgreSQL** (primary)  
 - **SQLite** (dev/testing)  
 - **JWT / OAuth2**  
-- **Alembic** *(planned)*  
+- **Alembic**
 
 ---
 
@@ -103,10 +103,10 @@ uvicorn backend.main:app --reload
 ## 🛠 Roadmap / TODO
 
 1. **RBAC (Role-Based Access Control)**
-    - Separate `roles` and `permissions` tables  
-    - Assign roles to users  
+    - ~~Separate `roles` and `permissions` tables~~
+    - ~~Assign roles to users~~
     - Enforce permissions via FastAPI dependencies  
-    - Replace plain `role` string in `users`  
+    - ~~Replace plain `role` string in `users`~~ 
 
 2. **Departments**
     - `departments` table  
