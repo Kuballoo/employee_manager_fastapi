@@ -32,7 +32,7 @@ async def login_for_access_token(login_data: Annotated[OAuth2PasswordRequestForm
     user = authenticate_user(login_data.username, login_data.password, db)
     if not user:
         raise HTTPException(status_code=400, detail="Authentication failed")
-
-    token = create_access_token(user.uuid, user.role)
+    roles = [role.name for role in user.roles]
+    token = create_access_token(user.uuid, roles)
 
     return {"access_token": token, "token_type": "bearer"}

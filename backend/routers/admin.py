@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 
 from ..dependecies import db_dependency, user_dependency
-from ..models import Users, Employees, UsersEmployeeAccess
-from ..schemas import CreateUserRequest, GiveAccessRequest
+from ..models import Users, Employees
+from ..schemas import CreateUserRequest
 from ..security import bcrypt_context
+from .. rbac import has_permission
 
 router = APIRouter(
     prefix="/admin",
@@ -35,8 +36,8 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
         None (implicitly returns the committed database transaction)
     
     """
-    if user is None or user.get("user_role") != "admin":
-        raise HTTPException(status_code=401, detail="Authentication Failed")
+    if not has_permission(user.get("user_uuid"), "users:create", db):
+        raise HTTPException(status_code=403, detail="Forbidden")
     existing_user = db.query(Users).filter(Users.login == create_user_request.login).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this login already exists")
@@ -44,14 +45,15 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
     if create_user_request.password != create_user_request.password_confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
 
-    new_user = Users(login=create_user_request.login, hashed_password=bcrypt_context.hash(create_user_request.password), role=create_user_request.role)
+    new_user = Users(login=create_user_request.login, hashed_password=bcrypt_context.hash(create_user_request.password))
     db.add(new_user)
     db.commit()
 
 
+"""
 @router.post("/give_access")
 async def give_access(give_access_request: GiveAccessRequest, db: db_dependency, user: user_dependency):
-    """
+    
     Grant database access to a user for specified employees.
     This endpoint allows an admin user to grant access to one or more employees
     for another user. It validates that the requester is an admin, checks if access
@@ -75,7 +77,6 @@ async def give_access(give_access_request: GiveAccessRequest, db: db_dependency,
     Note:
         All access entries are committed in a single transaction. If any error
         occurs during commit, the entire transaction is rolled back.
-    """
 
     if user is None or user.get("user_role") != "admin":
         raise HTTPException(status_code=401, detail="Authentication Failed")
@@ -111,3 +112,4 @@ async def give_access(give_access_request: GiveAccessRequest, db: db_dependency,
         raise HTTPException(status_code=500, detail="Failed to grant access")
     
     return give_access_successful
+"""

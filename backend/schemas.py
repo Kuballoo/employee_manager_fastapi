@@ -14,11 +14,6 @@ class CreateEmployeeRequest(BaseModel):
 
 class CreateUserRequest(BaseModel):
     login: Annotated[str, Field(max_length=50)]
-    role: Annotated[str, Field(max_length=50)]
     password: Annotated[str, Field(min_length=8)]
     password_confirm: Annotated[str, Field(min_length=8)]
 
-class GiveAccessRequest(BaseModel):
-    user_id: Annotated[UUID, Field()]
-    employees_ids: Annotated[list[UUID], Field()]
-    access_level: Annotated[str, Field(max_length=50)]

@@ -88,7 +88,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 
         if user_role is None or user_uuid is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user.")
-        return {"user_uuid": user_uuid, "user_role": user_role}
+        return {"user_uuid": user_uuid, "user_roles": user_role}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user.")
 
