@@ -1,4 +1,4 @@
-# users_manager_fastapi
+# employee_manager_fastapi
 
 A simple API for managing employees through functional (service) accounts, built with **FastAPI**.  
 Designed with clarity and explicit access in mind, utilizing a database that is easy to understand.

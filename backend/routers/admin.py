@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 
 from ..dependecies import db_dependency, user_dependency
-from ..models import Users, Employees
-from ..schemas import CreateUserRequest
+from ..models import Users, Employees, Roles
+from ..schemas import CreateUserRequest, CreateRoleRequest
 from ..security import bcrypt_context
 from .. rbac import has_permission
 
@@ -49,6 +49,18 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
     db.add(new_user)
     db.commit()
 
+
+@router.post("/create_role", status_code=status.HTTP_201_CREATED)
+async def create_role(create_role_request: CreateRoleRequest, db: db_dependency, user: user_dependency):
+    if not has_permission(user.get("user_uuid"), "role:create", db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    existing_role = db.query(Roles).filter(Roles.name == create_role_request.name).first()
+    if existing_role:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Role with this name already exists")
+
+    new_role = Roles(**create_role_request.model_dump())
+    db.add(new_role)
+    db.commit()
 
 """
 @router.post("/give_access")

@@ -17,3 +17,6 @@ class CreateUserRequest(BaseModel):
     password: Annotated[str, Field(min_length=8)]
     password_confirm: Annotated[str, Field(min_length=8)]
 
+class CreateRoleRequest(BaseModel):
+    name: Annotated[str, Field(max_length=50)]
+    description: Annotated[str, Field(max_length=500)]
