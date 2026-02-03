@@ -20,8 +20,8 @@ def has_permission(user_uuid: str, perm_list: list[str], db, all_roles_required:
         return False
 
     # !DELETE AFTER DB IS FILLED
-    if user.login == "admin":
-        return True
+    # if user.login == "admin":
+    #    return True
 
     # initialize flags
     perms_flags = {perm_name: False for perm_name in perm_list}
