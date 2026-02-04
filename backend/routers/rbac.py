@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
+from uuid import UUID
 
 from ..dependecies import db_dependency, user_dependency
 from ..models import Users, Employees, Roles, Permissions, RolesPermissions, UsersRoles
@@ -12,9 +13,68 @@ router = APIRouter(
     tags=["rbac"]
 )
 
-@router.get("/user_roles")
-async def access_user_roles():
-    pass
+@router.get("/users/{user_uuid}", status_code=status.HTTP_200_OK)
+async def get_user_data(user_uuid: UUID, db: db_dependency, user: user_dependency):
+    """
+    Retrieve the roles associated with a specific user.
+    Args:
+        user_uuid (UUID): The UUID of the user whose roles are to be retrieved.
+        db (db_dependency): Database session dependency for querying user data.
+        user (user_dependency): The current authenticated user making the request.
+    Returns:
+        dict: A dictionary containing:
+            - login (str): The user's login name.
+            - uuid (UUID): The user's unique identifier.
+            - roles (list[str]): A list of role names assigned to the user.
+    Raises:
+        HTTPException: 
+            - status_code 403 (Forbidden): If the current user lacks "user:read" permission.
+            - status_code 404 (Not Found): If the specified user does not exist in the database.
+    """
+
+    if not has_permission(user.get("user_uuid"), ["user:read"], db, True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    
+    user_query = db.query(Users).filter(Users.uuid == user_uuid).first()
+    if not user_query:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user_roles = [role.name for role in user_query.roles]
+    user_data = {
+        "uuid": user_query.uuid,
+        "login": user_query.login,
+        "roles": user_roles
+    }
+    return user_data
+    
+@router.get("/roles/{role_uuid}", status_code=status.HTTP_200_OK)
+async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependency):
+    """
+    Retrieve detailed information about a specific role including its permissions.
+    Args:
+        role_uuid (UUID): The unique identifier of the role to retrieve.
+        db (db_dependency): Database session dependency for querying role data.
+        user (user_dependency): Current authenticated user information.
+    Returns:
+        dict: A dictionary containing:
+            - uuid (UUID): The role's unique identifier.
+            - description (str): The role's description.
+            - permissions (list): A sorted list of permission names assigned to the role.
+    Raises:
+        HTTPException: 403 Forbidden if the user lacks "role:read" or "permission:read" permissions.
+        HTTPException: 404 Not Found if the role does not exist.
+    """
+    if not has_permission(user.get("user_uuid"), ["role:read", "permission:read"], db, True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    role = db.query(Roles).filter(Roles.uuid == role_uuid).first()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    permissions = [permission.name for permission in role.permissions]
+    permissions.sort()
+    return {
+        "uuid": role.uuid,
+        "description": role.description,
+        "permissions": permissions
+    }
 
 @router.post("/create_user", status_code=status.HTTP_201_CREATED)
 async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
@@ -79,7 +139,7 @@ async def create_role(create_role_request: CreateRoleRequest, db: db_dependency,
     db.add(new_role)
     db.commit()
 
-@router.post("/create_permission")
+@router.post("/create_permission", status_code=status.HTTP_201_CREATED)
 async def create_permission(permission_name: str, db: db_dependency, user: user_dependency):
     """
     Create a new permission in the system.
@@ -102,7 +162,7 @@ async def create_permission(permission_name: str, db: db_dependency, user: user_
     db.add(new_permission)
     db.commit()
 
-@router.post("/user-roles")
+@router.post("/user-roles", status_code=status.HTTP_201_CREATED)
 async def add_roles_to_users(add_roles_user: AddRolesUserRequest, db: db_dependency, user: user_dependency):
     """
     Adds one or more roles to a user.
@@ -140,7 +200,7 @@ async def add_roles_to_users(add_roles_user: AddRolesUserRequest, db: db_depende
         db.add(UsersRoles(uuid_user=user_uuid, uuid_role=role_uuid))
     db.commit()
 
-@router.post("/roles-permissions")
+@router.post("/roles-permissions", status_code=status.HTTP_201_CREATED)
 async def add_permissions_to_roles(add_permissions_roles_request: AddPermissionsRolesRequest, db: db_dependency, user: user_dependency):
     """
     Connect multiple permissions to multiple roles.
