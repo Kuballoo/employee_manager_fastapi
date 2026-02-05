@@ -5,11 +5,33 @@ from pandas import read_csv, read_excel
 from ..models import Employees
 from ..dependecies import db_dependency, user_dependency
 from ..schemas import CreateEmployeeRequest
+from ..rbac_logic import has_permission
 
 router = APIRouter(
     prefix="/employees",
     tags=["employees"]
 )
+
+@router.get("/", status_code=status.HTTP_200_OK)
+async def read_employees(db: db_dependency, user: user_dependency):
+    """
+    Retrieve all employees accessible to the authenticated user.
+    Args:
+        db (db_dependency): Database session dependency for querying the database.
+        user (user_dependency): Current authenticated user dependency containing user information.
+    Returns:
+        dict: A dictionary containing a "data" key with a list of employees accessible to the user.
+    Raises:
+        HTTPException: 401 Unauthorized if the user is not authenticated (user is None).
+    """
+    if not has_permission(user.get("user_uuid"), ["employee:read"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed")
+    
+    employees = db.query(Employees).all()
+    return employees
 
 @router.post("/add_employee", status_code=status.HTTP_201_CREATED)
 async def create_user(employee_data: CreateEmployeeRequest, db: db_dependency, user: user_dependency):
@@ -27,7 +49,7 @@ async def create_user(employee_data: CreateEmployeeRequest, db: db_dependency, u
     db.add(new_user)
     db.commit()
 
-@router.post("/add_employees")
+@router.post("/add_employees", status_code=status.HTTP_201_CREATED)
 async def upload_employees_file(file: Annotated[UploadFile, File()], db: db_dependency, user: user_dependency):
     """
     Upload and process employees from a CSV or Excel file.

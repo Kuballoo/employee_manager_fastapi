@@ -21,10 +21,8 @@ class CreateRoleRequest(BaseModel):
     name: Annotated[str, Field(max_length=50)]
     description: Annotated[str, Field(max_length=500)]
 
-class AddPermissionsRolesRequest(BaseModel):
+class AddRolesRequest(BaseModel):
     roles_uuids: Annotated[list[UUID], Field()]
-    permissions_uuids: Annotated[list[UUID], Field()]
 
-class AddRolesUserRequest(BaseModel):
-    user_uuid: Annotated[UUID, Field()]
-    roles_uuids: Annotated[list[UUID], Field()]
+class AddPerrmisionsRequest(BaseModel):
+    permissions_uuids: Annotated[list[UUID], Field()]

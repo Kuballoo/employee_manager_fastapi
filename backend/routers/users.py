@@ -1,31 +1,124 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from typing import Annotated
+from typing import Optional, Annotated
+from uuid import UUID
 
 from ..dependecies import db_dependency, user_dependency
-from ..models import Users
+from ..models import Users, UsersRoles
+from ..schemas import CreateUserRequest, AddRolesRequest
+from ..security import bcrypt_context
+from ..rbac_logic import has_permission
 
 router = APIRouter(
     prefix="/users",
     tags=["users"]
 )
 
+from typing import Optional
+from uuid import UUID
 
-@router.get("/")
-async def read_employees(db: db_dependency, user: user_dependency):
+@router.get("/", status_code=status.HTTP_200_OK)
+async def get_user_data(db: db_dependency, user: user_dependency, user_uuid: Optional[UUID] = None):
     """
-    Retrieve all employees accessible to the authenticated user.
+    Retrieve user data for a specified user or the authenticated user.
     Args:
-        db (db_dependency): Database session dependency for querying the database.
-        user (user_dependency): Current authenticated user dependency containing user information.
+        db (db_dependency): Database session dependency for querying user data.
+        user (user_dependency): Authenticated user information containing user_uuid and permissions.
+        user_uuid (Optional[UUID]): The UUID of the user to retrieve. If not provided, 
+                                    retrieves data for the authenticated user.
     Returns:
-        dict: A dictionary containing a "data" key with a list of employees accessible to the user.
+        dict: A dictionary containing the user's information with keys:
+            - uuid (UUID): The user's unique identifier.
+            - login (str): The user's login name.
+            - roles (list): A list of role names associated with the user.
     Raises:
-        HTTPException: 401 Unauthorized if the user is not authenticated (user is None).
+        HTTPException: 403 Forbidden if attempting to access another user's data 
+                       without proper "user:read" permissions.
+        HTTPException: 404 Not Found if the requested user does not exist in the database.
+    """
+    
+    target_uuid = user_uuid or user.get("user_uuid")
+    
+    if user_uuid and user_uuid != user.get("user_uuid"):
+        if not has_permission(user.get("user_uuid"), ["user:read"], db, True):
+            raise HTTPException(status_code=403, detail="Forbidden")
+    
+    user_query = db.query(Users).filter(Users.uuid == target_uuid).first()
+    if not user_query:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "uuid": user_query.uuid,
+        "login": user_query.login,
+        "roles": [role.name for role in user_query.roles]
+    }
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
+    """
+    Create a new user with validation.
+    This function creates a new user in the database after performing several validation checks:
+    - Ensures the login is unique (not already in use)
+    - Verifies that the password and password confirmation match
+    - Hashes the password using bcrypt before storing
+    Args:
+        create_user_request (CreateUserRequest): Request object containing:
+            - login (str): The unique username for the new user
+            - password (str): The user's password
+            - password_confirm (str): Password confirmation for validation
+            - role (str): The role to assign to the new user
+        db (db_dependency): Database session dependency for performing queries and commits
+        user (user_dependency): User dependency for authentication
+    Raises:
+        HTTPException: Raised with status code 400 if:
+            - A user with the provided login already exists
+            - The password and password_confirm fields do not match
+    Returns:
+        None (implicitly returns the committed database transaction)
+    
+    """
+    if not has_permission(user.get("user_uuid"), ["user:create"], db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    existing_user = db.query(Users).filter(Users.login == create_user_request.login).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this login already exists")
+    
+    if create_user_request.password != create_user_request.password_confirm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+
+    new_user = Users(login=create_user_request.login, hashed_password=bcrypt_context.hash(create_user_request.password))
+    db.add(new_user)
+    db.commit()
+
+@router.post("/{user_uuid}/roles", status_code=status.HTTP_201_CREATED)
+async def add_roles(user_uuid: UUID, request: AddRolesRequest, db: db_dependency, user: user_dependency):
+    """
+    Add one or more roles to a user.
+    This endpoint allows authorized users to assign roles to a specific user.
+    The requesting user must have either 'user:manage' or 'role:manage' permissions.
+    Args:
+        user_uuid (UUID): The UUID of the user to whom roles will be added.
+        request (AddRolesRequest): Request object containing a list of role UUIDs to be added.
+        db (db_dependency): Database session dependency for querying and committing changes.
+        user (user_dependency): Current authenticated user dependency containing user information.
+    Raises:
+        HTTPException: 403 Forbidden if the requesting user lacks 'user:manage' or 'role:manage' permissions.
+        HTTPException: 400 Bad Request if the user already has any of the roles being added.
+    Returns:
+        None: Commits the changes to the database if all validations pass.
     """
 
-    if user is None:
-        raise HTTPException(status_code=401, detail="Authentication Failed")
+    if not has_permission(user.get("user_uuid"), ["user:manage"], db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    roles_uuids = request.roles_uuids
+
+    for role_uuid in roles_uuids:
+        exists = db.query(UsersRoles).filter(
+            UsersRoles.uuid_role == role_uuid,
+            UsersRoles.uuid_user == user_uuid
+        ).first()
+        if exists:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"This user already has role {role_uuid}")
     
-    user_entry = db.query(Users).filter(Users.uuid == user.get("user_uuid")).first()
-    employees = user_entry.access_employees
-    return {"data": employees}
+    for role_uuid in roles_uuids:
+        db.add(UsersRoles(uuid_user=user_uuid, uuid_role=role_uuid))
+    db.commit()
