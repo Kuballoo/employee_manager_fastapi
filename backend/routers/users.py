@@ -13,41 +13,77 @@ router = APIRouter(
     tags=["users"]
 )
 
-@router.get("/", status_code=status.HTTP_200_OK)
-async def get_user_data(db: db_dependency, user: user_dependency, user_uuid: Optional[UUID] = None):
+@router.get("/me", status_code=status.HTTP_200_OK)
+async def get_my_data(db: db_dependency, user: user_dependency):
     """
-    Retrieve user data for a specified user or the authenticated user.
+    Retrieve the authenticated user's data.
+    This endpoint returns the current user's profile information including their UUID,
+    login, and assigned roles.
+    Args:
+        db (db_dependency): Database session dependency for querying user records.
+        user (user_dependency): Authenticated user dependency containing user_uuid.
+    Returns:
+        dict: A dictionary containing:
+            - uuid (str): The unique identifier of the user.
+            - login (str): The login username of the user.
+            - roles (list): A list of role names assigned to the user.
+    Raises:
+        HTTPException: 401 Unauthorized if user is not authenticated.
+        HTTPException: 404 Not Found if the user does not exist in the database.
+    """
+    
+    if user is None:
+       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    user_data = db.query(Users).filter(Users.uuid == user.get("user_uuid")).first()
+    if not user_data:
+       raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "uuid": user_data.uuid,
+        "login": user_data.login,
+        "roles": [role.name for role in user_data.roles]
+    }
+
+@router.get("/", status_code=status.HTTP_200_OK)
+async def get_users(db: db_dependency, user: user_dependency,user_uuid: Optional[UUID] = None):
+    """
+    Retrieve user information from the database.
+    Fetches either a single user by UUID or all users, depending on whether
+    user_uuid parameter is provided. Requires 'user:read' permission.
     Args:
         db (db_dependency): Database session dependency for querying user data.
-        user (user_dependency): Authenticated user information containing user_uuid and permissions.
-        user_uuid (Optional[UUID]): The UUID of the user to retrieve. If not provided, 
-                                    retrieves data for the authenticated user.
+        user (user_dependency): Current authenticated user dependency containing user_uuid.
+        user_uuid (Optional[UUID]): UUID of a specific user to retrieve. If not provided,
+            all users are returned. Defaults to None.
     Returns:
-        dict: A dictionary containing the user's information with keys:
-            - uuid (UUID): The user's unique identifier.
-            - login (str): The user's login name.
-            - roles (list): A list of role names associated with the user.
+        List[Dict[str, Any]]: List of dictionaries containing user information with keys:
+            - uuid (UUID): Unique identifier of the user.
+            - login (str): Login name of the user.
+            - roles (List[str]): List of role names assigned to the user.
     Raises:
-        HTTPException: 403 Forbidden if attempting to access another user's data 
-                       without proper "user:read" permissions.
-        HTTPException: 404 Not Found if the requested user does not exist in the database.
+        HTTPException: Status code 403 if the current user lacks 'user:read' permission.
+        HTTPException: Status code 404 if the specified user_uuid is not found in the database.
     """
-    
-    target_uuid = user_uuid or user.get("user_uuid")
-    
-    if user_uuid and user_uuid != user.get("user_uuid"):
-        if not has_permission(user.get("user_uuid"), ["user:read"], db, True):
-            raise HTTPException(status_code=403, detail="Forbidden")
-    
-    user_query = db.query(Users).filter(Users.uuid == target_uuid).first()
-    if not user_query:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "uuid": user_query.uuid,
-        "login": user_query.login,
-        "roles": [role.name for role in user_query.roles]
-    }
+
+    if not has_permission(user.get("user_uuid"), ["user:read"], db, True):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if user_uuid:
+        single_user = db.query(Users).filter(Users.uuid == user_uuid).first()
+        if not single_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        users = [single_user]
+    else:
+        users = db.query(Users).all()
+
+    return [
+        {
+            "uuid": u.uuid,
+            "login": u.login,
+            "roles": [role.name for role in u.roles]
+        }
+        for u in users
+    ]
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
