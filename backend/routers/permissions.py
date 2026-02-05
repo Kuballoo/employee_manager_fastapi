@@ -56,15 +56,15 @@ async def create_permission(permission_name: str, db: db_dependency, user: user_
     db.add(new_permission)
     db.commit()
 
-@router.delete("/{permission_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_permission(permission_name: str, db: db_dependency, user: user_dependency):
+@router.delete("/{permission_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_permission(permission_uuid: UUID, db: db_dependency, user: user_dependency):
     """
     Delete a permission from the system.
     This function removes a permission record from the database after validating
     that the user has the required 'permission:delete' permission. All associations
     between the permission and roles are cleared before deletion.
     Args:
-        permission_name (str): The name of the permission to delete.
+        permission_uuid (UUID): The name of the permission to delete.
         db (db_dependency): Database session dependency for querying and performing operations.
         user (user_dependency): The current user's information containing user_uuid and permissions.
     Raises:
@@ -76,7 +76,7 @@ async def delete_permission(permission_name: str, db: db_dependency, user: user_
 
     if not has_permission(user.get("user_uuid"), ["permission:delete"], db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    permission = db.query(Permissions).filter(Permissions.name == permission_name).first()
+    permission = db.query(Permissions).filter(Permissions.uuid == permission_uuid).first()
     if not permission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
     permission.roles.clear()

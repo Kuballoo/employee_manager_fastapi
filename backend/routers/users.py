@@ -13,9 +13,6 @@ router = APIRouter(
     tags=["users"]
 )
 
-from typing import Optional
-from uuid import UUID
-
 @router.get("/", status_code=status.HTTP_200_OK)
 async def get_user_data(db: db_dependency, user: user_dependency, user_uuid: Optional[UUID] = None):
     """
@@ -121,4 +118,32 @@ async def add_roles(user_uuid: UUID, request: AddRolesRequest, db: db_dependency
     
     for role_uuid in roles_uuids:
         db.add(UsersRoles(uuid_user=user_uuid, uuid_role=role_uuid))
+    db.commit()
+
+@router.delete("/{user_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(user_uuid: UUID, db: db_dependency, user: user_dependency):
+    """
+    Delete a user from the database.
+    Args:
+        user_uuid (UUID): The UUID of the user to be deleted.
+        db (db_dependency): Database session dependency for querying and modifying data.
+        user (user_dependency): The current authenticated user making the deletion request.
+    Raises:
+        HTTPException: 
+            - status_code 403 (Forbidden) if the current user lacks the 'user:delete' permission.
+            - status_code 404 (Not Found) if no user with the specified UUID exists in the database.
+    Returns:
+        None
+    Side Effects:
+        - Clears all roles associated with the user before deletion.
+        - Commits the deletion to the database.
+    """
+
+    if not has_permission(user.get("user_uuid"), ["user:delete"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    user_to_delete = db.query(Users).filter(Users.uuid == user_uuid).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with {user_uuid} not found")
+    user_to_delete.roles.clear()
+    db.delete(user_to_delete)
     db.commit()

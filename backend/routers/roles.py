@@ -90,14 +90,14 @@ async def create_role(create_role_request: CreateRoleRequest, db: db_dependency,
     db.add(new_role)
     db.commit()
 
-@router.delete("/{role_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_role(role_name: str, db: db_dependency, user: user_dependency):
+@router.delete("/{role_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_role(role_uuid: UUID, db: db_dependency, user: user_dependency):
     """
     Delete a role from the database.
     This function removes a role and all its associated permissions and user assignments.
     Only users with the 'role:delete' permission can perform this operation.
     Args:
-        role_name (str): The name of the role to delete.
+        role_name (UUID): The uuid of the role to delete.
         db (db_dependency): Database session dependency for executing queries.
         user (user_dependency): Current user dependency containing user information and UUID.
     Raises:
@@ -109,7 +109,7 @@ async def delete_role(role_name: str, db: db_dependency, user: user_dependency):
     
     if not has_permission(user.get("user_uuid"), ["role:delete"], db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    role = db.query(Roles).filter(Roles.name == role_name).first()
+    role = db.query(Roles).filter(Roles.uuid == role_uuid).first()
     if not role:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
     role.permissions.clear()
@@ -139,6 +139,9 @@ async def add_permissions(role_uuid: UUID, request: AddPerrmisionsRequest, db: d
     
     if not has_permission(user.get("user_uuid"), ["role:manage", "permission:manage"], db, True):
         raise HTTPException(status_code=403, detail="Forbidden")
+    role = db.query(Roles).filter(Roles.uuid == role_uuid).first()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
     permissions_uuids = request.permissions_uuids
     for permission_uuid in permissions_uuids:
         exists = db.query(RolesPermissions).filter(
