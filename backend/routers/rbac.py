@@ -13,7 +13,9 @@ router = APIRouter(
     tags=["rbac"]
 )
 
-@router.get("/users/{user_uuid}", status_code=status.HTTP_200_OK)
+
+
+@router.get("/users/{user_uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def get_user_data(user_uuid: UUID, db: db_dependency, user: user_dependency):
     """
     Retrieve the roles associated with a specific user.
@@ -46,7 +48,7 @@ async def get_user_data(user_uuid: UUID, db: db_dependency, user: user_dependenc
     }
     return user_data
     
-@router.get("/roles/{role_uuid}", status_code=status.HTTP_200_OK)
+@router.get("/roles/{role_uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependency):
     """
     Retrieve detailed information about a specific role including its permissions.
@@ -76,7 +78,61 @@ async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependenc
         "permissions": permissions
     }
 
-@router.post("/create_user", status_code=status.HTTP_201_CREATED)
+@router.delete("/permissions/{permission_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_permission(permission_name: str, db: db_dependency, user: user_dependency):
+    """
+    Delete a permission from the system.
+    This function removes a permission record from the database after validating
+    that the user has the required 'permission:delete' permission. All associations
+    between the permission and roles are cleared before deletion.
+    Args:
+        permission_name (str): The name of the permission to delete.
+        db (db_dependency): Database session dependency for querying and performing operations.
+        user (user_dependency): The current user's information containing user_uuid and permissions.
+    Raises:
+        HTTPException: With status 403 FORBIDDEN if the user lacks 'permission:delete' permission.
+        HTTPException: With status 404 NOT_FOUND if the permission does not exist in the database.
+    Returns:
+        None
+    """
+
+    if not has_permission(user.get("user_uuid"), ["permission:delete"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    permission = db.query(Permissions).filter(Permissions.name == permission_name).first()
+    if not permission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
+    permission.roles.clear()
+    db.delete(permission)
+    db.commit()
+
+@router.delete("/roles/{role_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_role(role_name: str, db: db_dependency, user: user_dependency):
+    """
+    Delete a role from the database.
+    This function removes a role and all its associated permissions and user assignments.
+    Only users with the 'role:delete' permission can perform this operation.
+    Args:
+        role_name (str): The name of the role to delete.
+        db (db_dependency): Database session dependency for executing queries.
+        user (user_dependency): Current user dependency containing user information and UUID.
+    Raises:
+        HTTPException: If the user lacks 'role:delete' permission (status 403).
+        HTTPException: If the role does not exist (status 404).
+    Returns:
+        None
+    """
+    
+    if not has_permission(user.get("user_uuid"), ["role:delete"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    role = db.query(Roles).filter(Roles.name == role_name).first()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    role.permissions.clear()
+    role.users.clear()
+    db.delete(role)
+    db.commit()
+
+@router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
     """
     Create a new user with validation.
@@ -113,7 +169,7 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
     db.add(new_user)
     db.commit()
 
-@router.post("/create_role", status_code=status.HTTP_201_CREATED)
+@router.post("/roles", status_code=status.HTTP_201_CREATED)
 async def create_role(create_role_request: CreateRoleRequest, db: db_dependency, user: user_dependency):
     """
     Create a new role in the system.
@@ -139,7 +195,7 @@ async def create_role(create_role_request: CreateRoleRequest, db: db_dependency,
     db.add(new_role)
     db.commit()
 
-@router.post("/create_permission", status_code=status.HTTP_201_CREATED)
+@router.post("/permissions", status_code=status.HTTP_201_CREATED)
 async def create_permission(permission_name: str, db: db_dependency, user: user_dependency):
     """
     Create a new permission in the system.
