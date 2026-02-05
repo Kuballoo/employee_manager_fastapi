@@ -188,6 +188,26 @@ async def delete_role(role_name: str, db: db_dependency, user: user_dependency):
     db.delete(role)
     db.commit()
 
+@router.get("/permissions", status_code=status.HTTP_200_OK)
+async def get_permissions(db: db_dependency, user: user_dependency):
+    """
+    Retrieve all permissions from the database.
+    This endpoint fetches a list of all available permissions. Access is restricted
+    to users who have the 'permission:read' permission.
+    Args:
+        db (db_dependency): Database session dependency for executing queries.
+        user (user_dependency): Current authenticated user dependency containing user information.
+    Returns:
+        list[Permissions]: A list of all permission objects from the database.
+    Raises:
+        HTTPException: 403 Forbidden if the user does not have 'permission:read' permission.
+    """
+    
+    if not has_permission(user.get("user_uuid"), ["permission:read"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    permissions = db.query(Permissions).all()
+    return permissions
+
 @router.post("/permissions", status_code=status.HTTP_201_CREATED)
 async def create_permission(permission_name: str, db: db_dependency, user: user_dependency):
     """
