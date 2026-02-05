@@ -205,7 +205,7 @@ async def get_permissions(db: db_dependency, user: user_dependency):
     
     if not has_permission(user.get("user_uuid"), ["permission:read"], db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    permissions = db.query(Permissions).all()
+    permissions = db.query(Permissions).order_by(Permissions.name).all()
     return permissions
 
 @router.post("/permissions", status_code=status.HTTP_201_CREATED)
