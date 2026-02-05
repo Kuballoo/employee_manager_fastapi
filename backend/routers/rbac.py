@@ -48,6 +48,43 @@ async def get_user_data(user_uuid: UUID, db: db_dependency, user: user_dependenc
     }
     return user_data
 
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
+    """
+    Create a new user with validation.
+    This function creates a new user in the database after performing several validation checks:
+    - Ensures the login is unique (not already in use)
+    - Verifies that the password and password confirmation match
+    - Hashes the password using bcrypt before storing
+    Args:
+        create_user_request (CreateUserRequest): Request object containing:
+            - login (str): The unique username for the new user
+            - password (str): The user's password
+            - password_confirm (str): Password confirmation for validation
+            - role (str): The role to assign to the new user
+        db (db_dependency): Database session dependency for performing queries and commits
+        user (user_dependency): User dependency for authentication
+    Raises:
+        HTTPException: Raised with status code 400 if:
+            - A user with the provided login already exists
+            - The password and password_confirm fields do not match
+    Returns:
+        None (implicitly returns the committed database transaction)
+    
+    """
+    if not has_permission(user.get("user_uuid"), ["user:create"], db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    existing_user = db.query(Users).filter(Users.login == create_user_request.login).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this login already exists")
+    
+    if create_user_request.password != create_user_request.password_confirm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+
+    new_user = Users(login=create_user_request.login, hashed_password=bcrypt_context.hash(create_user_request.password))
+    db.add(new_user)
+    db.commit()
+
 @router.get("/roles", status_code=status.HTTP_200_OK)
 async def get_roles(db: db_dependency, user: user_dependency):
     """
@@ -98,31 +135,30 @@ async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependenc
         "permissions": permissions
     }
 
-@router.delete("/permissions/{permission_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_permission(permission_name: str, db: db_dependency, user: user_dependency):
+@router.post("/roles", status_code=status.HTTP_201_CREATED)
+async def create_role(create_role_request: CreateRoleRequest, db: db_dependency, user: user_dependency):
     """
-    Delete a permission from the system.
-    This function removes a permission record from the database after validating
-    that the user has the required 'permission:delete' permission. All associations
-    between the permission and roles are cleared before deletion.
+    Create a new role in the system.
+    This endpoint creates a new role with the provided details. The user must have
+    the 'role:create' permission to perform this operation.
     Args:
-        permission_name (str): The name of the permission to delete.
-        db (db_dependency): Database session dependency for querying and performing operations.
-        user (user_dependency): The current user's information containing user_uuid and permissions.
+        create_role_request (CreateRoleRequest): The request object containing role details.
+        db (db_dependency): Database session dependency for querying and persisting data.
+        user (user_dependency): Current authenticated user dependency containing user information.
     Raises:
-        HTTPException: With status 403 FORBIDDEN if the user lacks 'permission:delete' permission.
-        HTTPException: With status 404 NOT_FOUND if the permission does not exist in the database.
+        HTTPException: If the user lacks 'role:create' permission (status_code=403).
+        HTTPException: If a role with the same name already exists (status_code=400).
     Returns:
-        None
+        Roles: The newly created role object.
     """
+    if not has_permission(user.get("user_uuid"), ["role:create"], db):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    existing_role = db.query(Roles).filter(Roles.name == create_role_request.name).first()
+    if existing_role:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Role with this name already exists")
 
-    if not has_permission(user.get("user_uuid"), ["permission:delete"], db):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    permission = db.query(Permissions).filter(Permissions.name == permission_name).first()
-    if not permission:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
-    permission.roles.clear()
-    db.delete(permission)
+    new_role = Roles(**create_role_request.model_dump())
+    db.add(new_role)
     db.commit()
 
 @router.delete("/roles/{role_name}", status_code=status.HTTP_204_NO_CONTENT)
@@ -152,69 +188,6 @@ async def delete_role(role_name: str, db: db_dependency, user: user_dependency):
     db.delete(role)
     db.commit()
 
-@router.post("/users", status_code=status.HTTP_201_CREATED)
-async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
-    """
-    Create a new user with validation.
-    This function creates a new user in the database after performing several validation checks:
-    - Ensures the login is unique (not already in use)
-    - Verifies that the password and password confirmation match
-    - Hashes the password using bcrypt before storing
-    Args:
-        create_user_request (CreateUserRequest): Request object containing:
-            - login (str): The unique username for the new user
-            - password (str): The user's password
-            - password_confirm (str): Password confirmation for validation
-            - role (str): The role to assign to the new user
-        db (db_dependency): Database session dependency for performing queries and commits
-        user (user_dependency): User dependency for authentication
-    Raises:
-        HTTPException: Raised with status code 400 if:
-            - A user with the provided login already exists
-            - The password and password_confirm fields do not match
-    Returns:
-        None (implicitly returns the committed database transaction)
-    
-    """
-    if not has_permission(user.get("user_uuid"), ["user:create"], db):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    existing_user = db.query(Users).filter(Users.login == create_user_request.login).first()
-    if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this login already exists")
-    
-    if create_user_request.password != create_user_request.password_confirm:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
-
-    new_user = Users(login=create_user_request.login, hashed_password=bcrypt_context.hash(create_user_request.password))
-    db.add(new_user)
-    db.commit()
-
-@router.post("/roles", status_code=status.HTTP_201_CREATED)
-async def create_role(create_role_request: CreateRoleRequest, db: db_dependency, user: user_dependency):
-    """
-    Create a new role in the system.
-    This endpoint creates a new role with the provided details. The user must have
-    the 'role:create' permission to perform this operation.
-    Args:
-        create_role_request (CreateRoleRequest): The request object containing role details.
-        db (db_dependency): Database session dependency for querying and persisting data.
-        user (user_dependency): Current authenticated user dependency containing user information.
-    Raises:
-        HTTPException: If the user lacks 'role:create' permission (status_code=403).
-        HTTPException: If a role with the same name already exists (status_code=400).
-    Returns:
-        Roles: The newly created role object.
-    """
-    if not has_permission(user.get("user_uuid"), ["role:create"], db):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    existing_role = db.query(Roles).filter(Roles.name == create_role_request.name).first()
-    if existing_role:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Role with this name already exists")
-
-    new_role = Roles(**create_role_request.model_dump())
-    db.add(new_role)
-    db.commit()
-
 @router.post("/permissions", status_code=status.HTTP_201_CREATED)
 async def create_permission(permission_name: str, db: db_dependency, user: user_dependency):
     """
@@ -236,6 +209,33 @@ async def create_permission(permission_name: str, db: db_dependency, user: user_
 
     new_permission = Permissions(name=permission_name)
     db.add(new_permission)
+    db.commit()
+
+@router.delete("/permissions/{permission_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_permission(permission_name: str, db: db_dependency, user: user_dependency):
+    """
+    Delete a permission from the system.
+    This function removes a permission record from the database after validating
+    that the user has the required 'permission:delete' permission. All associations
+    between the permission and roles are cleared before deletion.
+    Args:
+        permission_name (str): The name of the permission to delete.
+        db (db_dependency): Database session dependency for querying and performing operations.
+        user (user_dependency): The current user's information containing user_uuid and permissions.
+    Raises:
+        HTTPException: With status 403 FORBIDDEN if the user lacks 'permission:delete' permission.
+        HTTPException: With status 404 NOT_FOUND if the permission does not exist in the database.
+    Returns:
+        None
+    """
+
+    if not has_permission(user.get("user_uuid"), ["permission:delete"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    permission = db.query(Permissions).filter(Permissions.name == permission_name).first()
+    if not permission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Permission not found")
+    permission.roles.clear()
+    db.delete(permission)
     db.commit()
 
 @router.post("/user-roles", status_code=status.HTTP_201_CREATED)
