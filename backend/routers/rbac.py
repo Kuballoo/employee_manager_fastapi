@@ -47,8 +47,28 @@ async def get_user_data(user_uuid: UUID, db: db_dependency, user: user_dependenc
         "roles": user_roles
     }
     return user_data
-    
-@router.get("/roles/{role_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.get("/roles", status_code=status.HTTP_200_OK)
+async def get_roles(db: db_dependency, user: user_dependency):
+    """
+    Retrieve all roles from the database.
+    This endpoint fetches all available roles with permission verification.
+    Only users with 'role:read' permission are allowed to access this endpoint.
+    Args:
+        db (db_dependency): Database session dependency for querying the database.
+        user (user_dependency): Current user dependency containing user information including user_uuid.
+    Returns:
+        list[Roles]: A list of all Role objects from the database.
+    Raises:
+        HTTPException: With status code 403 (Forbidden) if the user lacks 'role:read' permission.
+    """
+
+    if not has_permission(user.get("user_uuid"), ["role:read"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    roles = db.query(Roles).all()
+    return roles
+
+@router.get("/roles/{role_uuid}", status_code=status.HTTP_200_OK)
 async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependency):
     """
     Retrieve detailed information about a specific role including its permissions.
