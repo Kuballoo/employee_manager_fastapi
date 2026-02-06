@@ -33,23 +33,30 @@ async def read_employees(db: db_dependency, user: user_dependency):
     employees = db.query(Employees).all()
     return employees
 
-@router.post("/add_employee", status_code=status.HTTP_201_CREATED)
-async def create_user(employee_data: CreateEmployeeRequest, db: db_dependency, user: user_dependency):
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_employee(employee_data: CreateEmployeeRequest, db: db_dependency, user: user_dependency):
     """
-    Creates a new user in the database using the provided employee data.
+    Create a new employee record in the database.
     Args:
-        employee_data (CreateEmployeeRequest): The data required to create a new employee.
-        db (Session): The database session dependency.
+        employee_data (CreateEmployeeRequest): The employee data to be created, validated through the request model.
+        db (db_dependency): Database session dependency for executing database operations.
+        user (user_dependency): Current authenticated user dependency containing user information and permissions.
     Returns:
-        None
+        The newly created employee object.
+    Raises:
+        HTTPException: If the user lacks 'employee:create' permission (status 403).
+        HTTPException: If user authentication fails or user is None (status 401).
     """
+    
+    if not has_permission(user.get("user_uuid"), ["employee:create"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication Failed")
-    new_user = Employees(**employee_data.model_dump())
-    db.add(new_user)
+    new_employee = Employees(**employee_data.model_dump())
+    db.add(new_employee)
     db.commit()
 
-@router.post("/add_employees", status_code=status.HTTP_201_CREATED)
+@router.post("/import", status_code=status.HTTP_201_CREATED)
 async def upload_employees_file(file: Annotated[UploadFile, File()], db: db_dependency, user: user_dependency):
     """
     Upload and process employees from a CSV or Excel file.
@@ -71,7 +78,8 @@ async def upload_employees_file(file: Annotated[UploadFile, File()], db: db_depe
         - On any insertion error, the transaction is rolled back to maintain data integrity.
         - A final commit is executed after successful processing.
     """
-    
+    if not has_permission(user.get("user_uuid"), ["employee:create"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication Failed")
     if file.filename.endswith(".csv"):
@@ -90,4 +98,3 @@ async def upload_employees_file(file: Annotated[UploadFile, File()], db: db_depe
         db.rollback()
         raise HTTPException(400, "Failed to insert employees")
         
-    db.commit()
