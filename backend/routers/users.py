@@ -4,7 +4,7 @@ from uuid import UUID
 
 from ..dependecies import db_dependency, user_dependency
 from ..models import Users, UsersRoles
-from ..schemas import CreateUserRequest, AddRolesRequest
+from ..schemas import CreateUserRequest, AddDeleteRolesRequest
 from ..security import bcrypt_context
 from ..rbac_logic import has_permission
 
@@ -122,14 +122,14 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency,
     db.commit()
 
 @router.post("/{user_uuid}/roles", status_code=status.HTTP_201_CREATED)
-async def add_roles(user_uuid: UUID, request: AddRolesRequest, db: db_dependency, user: user_dependency):
+async def add_roles(user_uuid: UUID, request: AddDeleteRolesRequest, db: db_dependency, user: user_dependency):
     """
     Add one or more roles to a user.
     This endpoint allows authorized users to assign roles to a specific user.
     The requesting user must have either 'user:manage' or 'role:manage' permissions.
     Args:
         user_uuid (UUID): The UUID of the user to whom roles will be added.
-        request (AddRolesRequest): Request object containing a list of role UUIDs to be added.
+        request (AddDeleteRolesRequest): Request object containing a list of role UUIDs to be added.
         db (db_dependency): Database session dependency for querying and committing changes.
         user (user_dependency): Current authenticated user dependency containing user information.
     Raises:

@@ -21,8 +21,8 @@ class CreateRoleRequest(BaseModel):
     name: Annotated[str, Field(max_length=50)]
     description: Annotated[str, Field(max_length=500)]
 
-class AddRolesRequest(BaseModel):
+class AddDeleteRolesRequest(BaseModel):
     roles_uuids: Annotated[list[UUID], Field()]
 
-class AddPerrmisionsRequest(BaseModel):
+class AddDeletePerrmisionsRequest(BaseModel):
     permissions_uuids: Annotated[list[UUID], Field()]

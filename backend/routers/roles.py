@@ -4,7 +4,7 @@ from uuid import UUID
 
 from ..dependecies import db_dependency, user_dependency
 from ..models import Users, Employees, Roles, Permissions, RolesPermissions
-from ..schemas import CreateRoleRequest, AddPerrmisionsRequest
+from ..schemas import CreateRoleRequest, AddDeletePerrmisionsRequest
 from ..security import bcrypt_context
 from ..rbac_logic import has_permission
 
@@ -127,12 +127,12 @@ async def delete_role(role_uuid: UUID, db: db_dependency, user: user_dependency)
     db.commit()
 
 @router.post("/{role_uuid}/permissions", status_code=status.HTTP_201_CREATED)
-async def add_permissions(role_uuid: UUID, request: AddPerrmisionsRequest, db: db_dependency, user: user_dependency):
+async def add_permissions(role_uuid: UUID, request: AddDeletePerrmisionsRequest, db: db_dependency, user: user_dependency):
     """
     Add permissions to a role.
     Args:
         role_uuid (UUID): The UUID of the role to which permissions will be added.
-        request (AddPerrmisionsRequest): Request object containing a list of permission UUIDs to add.
+        request (AddDeletePerrmisionsRequest): Request object containing a list of permission UUIDs to add.
         db (db_dependency): Database session dependency.
         user (user_dependency): Current user dependency containing user information.
     Raises:
@@ -160,10 +160,50 @@ async def add_permissions(role_uuid: UUID, request: AddPerrmisionsRequest, db: d
         if exists:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Connection already exists: role {role_uuid} - permission {permission_uuid}"
+                detail=f"Connection already exists with permission {permission_uuid}"
             )
             
     for permission_uuid in permissions_uuids:
         db.add(RolesPermissions(uuid_role=role_uuid, uuid_permission=permission_uuid))
 
     db.commit()
+
+@router.delete("/{role_uuid}/permissions", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_permissions(role_uuid: UUID, request: AddDeletePerrmisionsRequest, db: db_dependency, user: user_dependency):
+    """
+    Delete multiple permissions from a role.
+    This endpoint removes the specified permissions from a given role. The user must have
+    either 'role:manage' or 'permission:manage' permissions to perform this action.
+    Args:
+        role_uuid (UUID): The unique identifier of the role from which permissions will be deleted.
+        request (AddDeletePerrmisionsRequest): Request object containing the list of permission UUIDs to delete.
+        db (db_dependency): Database session dependency for executing queries.
+        user (user_dependency): Current user dependency containing user information and permissions.
+    Raises:
+        HTTPException: 403 Forbidden if the user lacks required permissions ('role:manage' or 'permission:manage').
+        HTTPException: 404 Not Found if the specified role does not exist.
+        HTTPException: 400 Bad Request if any of the specified permissions are not connected to the role.
+    Returns:
+        None: Commits the deletion to the database on successful completion.
+    """
+    
+    if not has_permission(user.get("user_uuid"), ["role:manage", "permission:manage"], db, True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    role = db.query(Roles).filter(Roles.uuid == role_uuid).first()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    permissions_uuids = request.permissions_uuids
+    for permission_uuid in permissions_uuids:
+        exists = db.query(RolesPermissions).filter(
+            RolesPermissions.uuid_permission == permission_uuid,
+            RolesPermissions.uuid_role == role_uuid
+        ).first()
+        if not exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"Connection not exists with permission {permission_uuid}"
+            )
+        db.delete(exists)
+    
+    db.commit()
+    
