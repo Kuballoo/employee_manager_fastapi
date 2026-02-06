@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from typing import Annotated
 from pandas import read_csv, read_excel
+from uuid import UUID
 
 from ..models import Employees
 from ..dependecies import db_dependency, user_dependency
@@ -98,3 +99,29 @@ async def upload_employees_file(file: Annotated[UploadFile, File()], db: db_depe
         db.rollback()
         raise HTTPException(400, "Failed to insert employees")
         
+@router.delete("/{employee_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_employee(employee_uuid: UUID, db: db_dependency, user: user_dependency):
+    """
+    Delete an employee from the database.
+    This endpoint removes an employee record identified by their UUID. It first verifies
+    that the requesting user has the necessary 'employee:delete' permission. If the user
+    lacks permission, a 403 Forbidden error is raised. If the employee does not exist,
+    a 404 Not Found error is raised.
+    Args:
+        employee_uuid (UUID): The unique identifier of the employee to delete.
+        db (db_dependency): Database session dependency for querying and modifying data.
+        user (user_dependency): The current authenticated user with their permissions.
+    Raises:
+        HTTPException: 403 Forbidden if the user lacks 'employee:delete' permission.
+        HTTPException: 404 Not Found if the employee with the given UUID does not exist.
+    Returns:
+        None
+    """
+    
+    if not has_permission(user.get("user_uuid"), ["employee:delete"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    employee = db.query(Employees).filter(Employees.uuid == employee_uuid).first()
+    if not employee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+    db.delete(employee)
+    db.commit()

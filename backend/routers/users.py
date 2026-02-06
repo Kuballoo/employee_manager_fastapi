@@ -84,7 +84,6 @@ async def get_users(db: db_dependency, user: user_dependency,user_uuid: Optional
         for u in users
     ]
 
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(create_user_request: CreateUserRequest, db: db_dependency, user: user_dependency):
     """

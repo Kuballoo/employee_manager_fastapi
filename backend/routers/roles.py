@@ -15,7 +15,7 @@ router = APIRouter(
 
 
 @router.get("/", status_code=status.HTTP_200_OK)
-async def get_roles(db: db_dependency, user: user_dependency):
+async def get_data(db: db_dependency, user: user_dependency):
     """
     Retrieve all roles from the database.
     This endpoint fetches all available roles with permission verification.
@@ -35,33 +35,42 @@ async def get_roles(db: db_dependency, user: user_dependency):
     return roles
 
 @router.get("/{role_uuid}", status_code=status.HTTP_200_OK)
-async def get_role_data(role_uuid: UUID, db: db_dependency, user: user_dependency):
+async def get_detailed_data(role_uuid: UUID, db: db_dependency, user: user_dependency):
     """
-    Retrieve detailed information about a specific role including its permissions.
+    Retrieve detailed information about a specific role.
+    This endpoint fetches comprehensive data for a role including its UUID, description,
+    associated permissions, and assigned users. Access is restricted to users with 
+    'role:read' and 'permission:read' permissions.
     Args:
         role_uuid (UUID): The unique identifier of the role to retrieve.
         db (db_dependency): Database session dependency for querying role data.
-        user (user_dependency): Current authenticated user information.
+        user (user_dependency): Current authenticated user dependency for permission validation.
     Returns:
         dict: A dictionary containing:
             - uuid (UUID): The role's unique identifier.
             - description (str): The role's description.
-            - permissions (list): A sorted list of permission names assigned to the role.
+            - permissions (list[str]): Sorted list of permission names assigned to the role.
+            - users (list[str]): List of user logins assigned to the role.
     Raises:
-        HTTPException: 403 Forbidden if the user lacks "role:read" or "permission:read" permissions.
-        HTTPException: 404 Not Found if the role does not exist.
+        HTTPException: 
+            - 403 Forbidden: If the user lacks required 'role:read' and 'permission:read' permissions.
+            - 404 Not Found: If the role with the specified UUID does not exist.
     """
+
     if not has_permission(user.get("user_uuid"), ["role:read", "permission:read"], db, True):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     role = db.query(Roles).filter(Roles.uuid == role_uuid).first()
     if not role:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
     permissions = [permission.name for permission in role.permissions]
+    users = [user.login for user in role.users]
     permissions.sort()
     return {
         "uuid": role.uuid,
+        "name": role.name,
         "description": role.description,
-        "permissions": permissions
+        "permissions": permissions,
+        "users": users
     }
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -158,5 +167,3 @@ async def add_permissions(role_uuid: UUID, request: AddPerrmisionsRequest, db: d
         db.add(RolesPermissions(uuid_role=role_uuid, uuid_permission=permission_uuid))
 
     db.commit()
-        
-
