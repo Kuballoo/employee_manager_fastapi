@@ -169,7 +169,7 @@ async def add_permissions(role_uuid: UUID, request: AddDeletePerrmisionsRequest,
     db.commit()
 
 @router.delete("/{role_uuid}/permissions", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_permissions(role_uuid: UUID, request: AddDeletePerrmisionsRequest, db: db_dependency, user: user_dependency):
+async def remove_permissions(role_uuid: UUID, request: AddDeletePerrmisionsRequest, db: db_dependency, user: user_dependency):
     """
     Delete multiple permissions from a role.
     This endpoint removes the specified permissions from a given role. The user must have
@@ -200,7 +200,7 @@ async def delete_permissions(role_uuid: UUID, request: AddDeletePerrmisionsReque
         ).first()
         if not exists:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
+                status_code=status.HTTP_404_NOT_FOUND, 
                 detail=f"Connection not exists with permission {permission_uuid}"
             )
         db.delete(exists)

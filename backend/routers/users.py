@@ -139,7 +139,7 @@ async def add_roles(user_uuid: UUID, request: AddDeleteRolesRequest, db: db_depe
         None: Commits the changes to the database if all validations pass.
     """
 
-    if not has_permission(user.get("user_uuid"), ["user:manage"], db):
+    if not has_permission(user.get("user_uuid"), ["user:manage", "role:manage"], db):
         raise HTTPException(status_code=403, detail="Forbidden")
     roles_uuids = request.roles_uuids
 
@@ -181,4 +181,38 @@ async def delete_user(user_uuid: UUID, db: db_dependency, user: user_dependency)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with {user_uuid} not found")
     user_to_delete.roles.clear()
     db.delete(user_to_delete)
+    db.commit()
+
+@router.delete("/{user_uuid}/roles", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_role(user_uuid: UUID, request: AddDeleteRolesRequest, db: db_dependency, user: user_dependency):
+    """
+    Remove one or more roles from a user.
+    Args:
+        user_uuid (UUID): The UUID of the user from which roles will be removed.
+        request (AddDeleteRolesRequest): Request object containing the UUIDs of roles to remove.
+        db (db_dependency): Database session dependency for querying and modifying data.
+        user (user_dependency): Current authenticated user dependency for permission validation.
+    Raises:
+        HTTPException: 403 Forbidden if the current user lacks 'user:manage' or 'role:manage' permissions.
+        HTTPException: 404 Not Found if the target user does not exist.
+        HTTPException: 404 Not Found if any specified role connection does not exist for the user.
+    Returns:
+        None
+    """
+    
+    if not has_permission(user.get("user_uuid"), ["user:manage", "role:manage"], db, True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    user = db.query(Users).filter(Users.uuid == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    roles_uuids = request.roles_uuids
+    for role_uuid in roles_uuids:
+        exists = db.query(UsersRoles).filter(
+            UsersRoles.uuid_role == role_uuid,
+            UsersRoles.uuid_user == user_uuid                 
+        ).first()
+        if not exists:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Connection not exists with role {role_uuid}")
+        db.delete(exists)
+
     db.commit()

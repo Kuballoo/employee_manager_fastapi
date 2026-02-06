@@ -40,7 +40,6 @@ class Employees(Base):
     salary = Column(Float, nullable=False)
     employment_date = Column(Date, nullable=False, default=date.today)
 
-
 class Users(Base):
     """
     Users table model for storing user account information.
