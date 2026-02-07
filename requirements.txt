@@ -12,3 +12,4 @@ openpyxl
 python-multipart
 uvicorn
 alembic
+jinja2
