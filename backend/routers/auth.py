@@ -23,7 +23,7 @@ async def login_page(request: Request):
     )
 
 @router.post("/login/submit", include_in_schema=False)
-def login_submit(request: Request, db: db_dependency, username: str = Form(...), password: str = Form(...)):
+def login_submit(request: Request, db: db_dependency, username: str | None = Form(None), password: str | None = Form(None)):
     """
     Handle user login submission and authentication.
     Authenticates the user with the provided username and password credentials.
@@ -39,6 +39,15 @@ def login_submit(request: Request, db: db_dependency, username: str = Form(...),
         TemplateResponse: Login template with error message if authentication fails (401 status).
         RedirectResponse: Redirect to home page with access token cookie if authentication succeeds (302 status).
     """
+    if not username or not password:
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "error": "Fill all fields"
+            },
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
     
     user = authenticate_user(username, password, db)
 

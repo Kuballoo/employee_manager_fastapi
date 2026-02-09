@@ -1,0 +1,21 @@
+.bg-primary {
+    background-color: #500f7a !important;
+}
+
+.bg-secondary {
+    background-color: #d9a1ff !important;
+}
+
+#username, #password{
+    background-color: #d9a1ff;   /* żółte tło */
+    color: #212529;             /* kolor tekstu */
+    border: 2px solid #c876ff;  /* obramowanie */
+    border-radius: 0.5rem;      /* zaokrąglenie */
+}
+#username:focus,
+#password:focus {
+    border-color: #a64fff;               /* mocniejszy fiolet obramowania */
+    box-shadow: 0 0 0 0.25rem rgba(214, 161, 255, 0.1); /* delikatny cień */
+    outline: none;                        /* usuwa domyślny niebieski outline */
+}
+
