@@ -33,10 +33,10 @@ def create_access_token(uuid: str, expires_delta: timedelta = timedelta(minutes=
         str: Encoded JWT token containing the user's UUID, role, and expiration time.
     """
 
-    expire_date = datetime.now() + expires_delta
+    expire_date = datetime.now(timezone.utc) + expires_delta
     payload = {
         "sub": str(uuid),
-        "exp": expire_date
+        "exp": int(expire_date.timestamp())
     }
 
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -111,10 +111,10 @@ def get_current_user_or_redirect(request: Request):
     """
     token = request.cookies.get("access_token")
     if not token:
-        return RedirectResponse("/login", status_code=302)
+        return RedirectResponse("/auth/login", status_code=302)
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": True})
         return {"user_uuid": payload["sub"]}
     except JWTError:
         response = RedirectResponse("/auth/login", status_code=302)
