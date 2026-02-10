@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Form, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
-from typing import Annotated
+from typing import Annotated, Optional
+from urllib.parse import quote
 
 from ..dependecies import db_dependency
 from ..security import authenticate_user, create_access_token
@@ -12,13 +13,57 @@ router = APIRouter(
     tags=["auth"]
 )
 
+### FRONTEND ENDPOINTS ###
+@router.get("/logout")
+async def logout():
+    """
+    Logout endpoint that clears the authentication session.
+
+    This endpoint invalidates the user's session by removing the JWT access token
+    from the browser cookies and redirects the user back to the login page.
+    After calling this endpoint, the user must re-authenticate to access protected routes.
+
+    Args:
+        None
+
+    Returns:
+        RedirectResponse: Redirects to '/auth/login' (302 status code) with
+            the 'access_token' cookie deleted, effectively logging out the user.
+
+    Raises:
+        None
+    """
+    response = RedirectResponse(url="/auth/login", status_code=302)
+    response.delete_cookie("access_token")
+    return response
+
 @router.get("/login")
-async def login_page(request: Request):
+async def login_page(request: Request, error: Optional[str] = None):
+    """
+    Login page endpoint that renders the authentication form.
+
+    This endpoint serves the HTML login template, optionally displaying error
+    messages passed as query parameters (e.g., after failed authentication attempts).
+    It does not perform actual authentication — handles only the login form rendering.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        error (Optional[str], optional): Error message to display on the login form.
+            Defaults to None. Passed via query parameter `?error=message`.
+
+    Returns:
+        TemplateResponse: Renders 'login.html' template with:
+            - request: The FastAPI Request object for template context.
+            - error: Optional error message for form validation/display.
+
+    Raises:
+        None
+    """
     return templates.TemplateResponse(
         "login.html",
         {
             "request": request,
-            "error": None
+            "error": error
         }
     )
 
@@ -40,30 +85,22 @@ def login_submit(request: Request, db: db_dependency, username: str | None = For
         RedirectResponse: Redirect to home page with access token cookie if authentication succeeds (302 status).
     """
     if not username or not password:
-        return templates.TemplateResponse(
-            "login.html",
-            {
-                "request": request,
-                "error": "Fill all fields"
-            },
-            status_code=status.HTTP_400_BAD_REQUEST
+        return RedirectResponse(
+            url=f"/auth/login?error={quote('Fill all fields')}",
+            status_code=302
         )
     
-    user = authenticate_user(username, password, db)
+    user_auth = authenticate_user(username, password, db)
 
-    if not user:
-        return templates.TemplateResponse(
-            "login.html",
-            {
-                "request": request,
-                "error": "Wrong login data"
-            },
-            status_code=status.HTTP_401_UNAUTHORIZED
+    if not user_auth:
+        return RedirectResponse(
+            url=f"/auth/login?error={quote('Wrong login or password')}",
+            status_code=302
         )
 
-    token = create_access_token(user.uuid)
+    token = create_access_token(user_auth.uuid)
     
-    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(url="/users/home-page", status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         key="access_token",
         value=token,
@@ -72,6 +109,7 @@ def login_submit(request: Request, db: db_dependency, username: str | None = For
     return response
 
 
+### O2AUTH API ENDPOINT ###
 @router.post("/token")
 async def login_for_access_token(login_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency):
     """

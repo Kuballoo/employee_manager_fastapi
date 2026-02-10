@@ -19,3 +19,51 @@
     outline: none;                        /* usuwa domyślny niebieski outline */
 }
 
+.btn-primary {
+    background-color: #500f7a;      /* ten sam fiolet co .bg-primary */
+    border-color: #c876ff;          /* jak obramowanie inputów */
+    color: #ffffff;                 /* biały tekst */
+    border-radius: 0.5rem;          /* zaokrąglenie jak w inputach */
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background-color: #500f7a !important;
+    border-color: #c876ff !important;
+    color: #ffffff !important;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background-color: #6a17a8 !important;
+    border-color: #a64fff !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:active,
+.btn-primary.active {
+    background-color: #3c0b5a !important;
+    border-color: #8e3adf !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:focus,
+.btn-primary:active:focus,
+.btn-primary.active:focus,
+.btn-primary.focus {
+    background-color: #500f7a !important;
+    border-color: #a64fff !important;
+    color: #ffffff !important;
+    outline: none !important;
+    box-shadow: 0 0 0 0.25rem rgba(214, 161, 255, 0.4) !important;
+}
+
+.btn-primary:active:hover,
+.btn-primary.active:hover {
+    background-color: #4d1289 !important;
+    border-color: #a64fff !important;
+    color: #ffffff !important;
+}

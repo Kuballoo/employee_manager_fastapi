@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h1 class="mb-4">Home Page</h1>
+
+<div class="card bg-dark text-light shadow">
+    <div class="card-header fw-bold fs-4">
+        User profile
+    </div>
+
+    <div class="card-body">
+        {% if user %}
+            <dl class="row mb-0">
+                <dt class="col-sm-4">UUID</dt>
+                <dd class="col-sm-8">
+                    <code class="text-">{{ user.uuid }}</code>
+                </dd>
+
+                <dt class="col-sm-4">Username</dt>
+                <dd class="col-sm-8">{{ user.login }}</dd>
+
+                <dt class="col-sm-4">Roles</dt>
+                <dd class="col-sm-8">
+                    {% for role in user.roles %}
+                        <span class="badge bg-primary me-1">{{ role.name }}</span>
+                    {% endfor %}
+                </dd>
+            </dl>
+        {% else %}
+            <p class="text-warning mb-0">No user data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+{% endblock %}

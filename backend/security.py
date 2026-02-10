@@ -1,4 +1,5 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from datetime import timedelta, datetime, timezone
 from jose import jwt, JWTError
@@ -40,7 +41,6 @@ def create_access_token(uuid: str, expires_delta: timedelta = timedelta(minutes=
 
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     
-
 def authenticate_user(login: str, password: str, db):
     """
     Authenticate a user by verifying their login credentials.
@@ -61,7 +61,6 @@ def authenticate_user(login: str, password: str, db):
         return False
 
     return user if bcrypt_context.verify(password, user.hashed_password) else False
-
 
 def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     """
@@ -89,6 +88,38 @@ def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         return {"user_uuid": user_uuid}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user.")
+
+def get_current_user_or_redirect(request: Request):
+    """
+    Dependency function to extract current user from JWT token or redirect to login.
+
+    This utility function checks for a valid JWT access token in cookies and
+    extracts the user_uuid from the payload. Returns user data on success or
+    redirects to login page on authentication failure/missing token.
+
+    Args:
+        request (Request): The incoming HTTP request containing cookies.
+
+    Returns:
+        dict or RedirectResponse:
+            - dict: On success, returns {"user_uuid": str} extracted from JWT payload.
+            - RedirectResponse: On failure (no token or invalid/expired token),
+                redirects to "/auth/login" (302) and deletes invalid cookie.
+
+    Raises:
+        JWTError: If token decoding fails (invalid signature, expired, etc.).
+    """
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse("/login", status_code=302)
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"user_uuid": payload["sub"]}
+    except JWTError:
+        response = RedirectResponse("/auth/login", status_code=302)
+        response.delete_cookie("access_token")
+        return response
 
 #token_test = create_access_token("7f760de9-9a9d-402e-8cb9-1b7e1c7516a8", "admin")
 #print(token_test)

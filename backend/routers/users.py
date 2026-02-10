@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from typing import Optional, Annotated
 from uuid import UUID
 
@@ -7,12 +7,62 @@ from ..models import Users, UsersRoles
 from ..schemas import CreateUserRequest, AddDeleteRolesRequest
 from ..security import bcrypt_context
 from ..rbac_logic import has_permission
+from ..templates import templates
 
 router = APIRouter(
     prefix="/users",
     tags=["users"]
 )
 
+### FRONTEND ENDPOINTS ###
+@router.get("/home-page")
+async def home_page(request: Request, db: db_dependency, user: user_dependency):
+    """
+    Render the home page for an authenticated user.
+    Args:
+        request (Request): The HTTP request object.
+        db (db_dependency): Database session dependency for querying user data.
+        user (user_dependency): Current authenticated user dependency containing user_uuid.
+    Returns:
+        TemplateResponse: Rendered HTML template with user data context.
+    Raises:
+        HTTPException: 404 error if the user is not found in the database.
+    """
+
+    user_data = db.query(Users).filter(Users.uuid == user.get("user_uuid")).first()
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return templates.TemplateResponse(
+        "home-page.html",
+        {"request": request, "user": user_data}
+    )
+
+@router.get("/employees-panel")
+async def home_page(request: Request, db: db_dependency, user: user_dependency):
+    """
+    Retrieve and render the home page for an authenticated user.
+    Args:
+        request (Request): The HTTP request object.
+        db (db_dependency): The database session dependency.
+        user (user_dependency): The authenticated user dependency containing user_uuid.
+    Returns:
+        TemplateResponse: Rendered HTML template with user data.
+    Raises:
+        HTTPException: 404 error if the user is not found in the database.
+    """
+
+    user_data = db.query(Users).filter(Users.uuid == user.get("user_uuid")).first()
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return templates.TemplateResponse(
+        "employees-panel.html",
+        {"request": request, "user": user_data}
+    )
+
+
+### API ENDPOINTS ###
 @router.get("/me", status_code=status.HTTP_200_OK)
 async def get_my_data(db: db_dependency, user: user_dependency):
     """
