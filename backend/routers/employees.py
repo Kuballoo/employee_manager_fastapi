@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from fastapi.requests import Request
 from typing import Annotated
 from pandas import read_csv, read_excel
 from uuid import UUID
@@ -7,14 +8,17 @@ from ..models import Employees
 from ..dependecies import db_dependency, user_dependency
 from ..schemas import CreateEmployeeRequest
 from ..rbac_logic import has_permission
+from ..templates import templates
 
 router = APIRouter(
     prefix="/employees",
     tags=["employees"]
 )
 
+
+### API ENDPOINTS ###
 @router.get("/", status_code=status.HTTP_200_OK)
-async def read_employees(db: db_dependency, user: user_dependency):
+async def read_employees(request: Request, db: db_dependency, user: user_dependency):
     """
     Retrieve all employees accessible to the authenticated user.
     Args:
@@ -32,7 +36,10 @@ async def read_employees(db: db_dependency, user: user_dependency):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed")
     
     employees = db.query(Employees).all()
-    return employees
+    return templates.TemplateResponse(
+        "employees-panel.html",
+        {"request": request, "employees": employees}
+    )
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_employee(employee_data: CreateEmployeeRequest, db: db_dependency, user: user_dependency):
@@ -49,10 +56,11 @@ async def create_employee(employee_data: CreateEmployeeRequest, db: db_dependenc
         HTTPException: If user authentication fails or user is None (status 401).
     """
     
-    if not has_permission(user.get("user_uuid"), ["employee:create"], db):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication Failed")
+    if not has_permission(user.get("user_uuid"), ["employee:create"], db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    
     new_employee = Employees(**employee_data.model_dump())
     db.add(new_employee)
     db.commit()
