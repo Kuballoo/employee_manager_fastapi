@@ -1,3 +1,5 @@
+# PROJECT SUSPENDED
+
 # employee_manager_fastapi
 
 A simple API for managing employees through functional (service) accounts, built with **FastAPI**.  
